@@ -3,9 +3,6 @@
 })
 out.to_csv(path, index=False)
 
-
-
-
 def _plot(series: Optional[pd.Series], path: str):
 os.makedirs(os.path.dirname(path), exist_ok=True)
 plt.close("all")
@@ -63,9 +60,6 @@ info = {
 with open(json_path, "w", encoding="utf-8") as f:
 f.write(pd.io.json.dumps(info, ensure_ascii=False, indent=2))
 
-
-
-
 def main():
 try:
 tickers = _load_tickers(TICKER_FILE)
@@ -77,9 +71,6 @@ _save_post_and_json(series, POST_PATH, JSON_PATH)
 print("[INFO] done.")
 except Exception as e:
 print(f"[FATAL] mbank3 intraday failed: {e!r}")
-
-
-
 
 if __name__ == "__main__":
 main()
