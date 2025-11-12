@@ -1,0 +1,32 @@
+{
+  "index_key": "mbank3",
+  "label": "M-BANK3",
+  "name_ja": "メガバンク3指数",
+  "description_ja": "M-BANK3は、日本の三大メガバンク（三菱UFJフィナンシャル・グループ、三井住友フィナンシャルグループ、みずほフィナンシャルグループ）の株価を等ウェイトで平均した日中スナップショット指数です。銀行セクターの動向をリアルタイムで把握することを目的とし、リスクオン・オフの判断補助指標として機能します。",
+  "composition": [
+    {
+      "ticker": "8306.T",
+      "name_ja": "三菱UFJフィナンシャル・グループ"
+    },
+    {
+      "ticker": "8316.T",
+      "name_ja": "三井住友フィナンシャルグループ"
+    },
+    {
+      "ticker": "8411.T",
+      "name_ja": "みずほフィナンシャルグループ"
+    }
+  ],
+  "base": {
+    "type": "equal_weight",
+    "unit": "percent",
+    "basis": "前日終値比"
+  },
+  "category": "金融・銀行",
+  "frequency": "intraday (5min, JST)",
+  "update_policy": "平日09:00〜15:30（5分ごと自動更新）",
+  "data_source": "Yahoo! Finance Japan",
+  "chart_color": "#f87171",
+  "created_at": "2025-11-12T00:00:00+09:00",
+  "updated_at": "2025-11-12T14:47:00+09:00"
+}
