@@ -214,20 +214,29 @@ def save_csv(series: pd.Series, path: str, pd_freq: str) -> None:
     print(f"[INFO] wrote CSV rows: {len(out)}")
 
 def plot_png(series: Optional[pd.Series], path: str) -> None:
+    """最後の値の符号で色を切替：プラス=青、マイナス=赤"""
     ensure_outdir(path)
     plt.close("all")
     fig, ax = plt.subplots(figsize=(14, 6), dpi=140)
+
+    # 背景/グリッド（サイトのダークテーマに合わせたトーン）
     fig.patch.set_facecolor("black"); ax.set_facecolor("black")
     for sp in ax.spines.values(): sp.set_color("#333")
     ax.grid(True, color="#2a2a2a", alpha=0.5, linestyle="--", linewidth=0.7)
+
     title = f"M-BANK3 Intraday Snapshot ({jst_now().strftime('%Y/%m/%d %H:%M JST')})"
-    if series is None or len(series) == 0:
+
+    if series is None or len(series) == 0 or series.dropna().empty:
         ax.set_title(title + " (no data)", color="white")
         ax.axhline(0, color="#666", linewidth=1.0)
     else:
-        ax.plot(series.index, series.values, color="#f87171", linewidth=2.0)
+        s = series.dropna()
+        last_pct = float(s.iloc[-1])
+        line_color = "#22d3ee" if last_pct >= 0 else "#ef4444"  # 青 / 赤
+        ax.plot(s.index, s.values, color=line_color, linewidth=2.0)
         ax.axhline(0, color="#666", linewidth=1.0)
         ax.set_title(title, color="white")
+
     ax.tick_params(colors="white")
     ax.set_xlabel("Time", color="white")
     ax.set_ylabel("Change vs Prev Close (%)", color="white")
