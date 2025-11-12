@@ -22,7 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      # 手動起動時に force=true なら 1、それ以外は 0
       FORCE: ${{ github.event.inputs.force == 'true' && '1' || '0' }}
 
     steps:
@@ -38,8 +37,8 @@ jobs:
 
       - name: Install deps
         run: |
-          python -m pip install -U pip
-          pip install -r requirements.txt
+            python -m pip install -U pip
+            pip install -r requirements.txt
 
       - name: Compute JST session flags
         id: flags
@@ -53,10 +52,23 @@ jobs:
           start = datetime.combine(now.date(), time(9,0), tz)
           end   = datetime.combine(now.date(), time(15,30), tz)
           in_session = start <= now <= end
-          print(f"in_session={in_session}")
           with open("${GITHUB_OUTPUT}", "a") as wf:
               wf.write(f"in_session={'true' if in_session else 'false'}\n")
           PY
+
+      # ← ここで secrets の有無を判定して outputs に渡す（if: では secrets を使わない）
+      - name: Decide site sync availability
+        id: site
+        env:
+          SITE_REPO: ${{ secrets.SITE_REPO }}
+          SITE_TOKEN: ${{ secrets.SITE_TOKEN }}
+        shell: bash
+        run: |
+          if [ -n "${SITE_REPO}" ] && [ -n "${SITE_TOKEN}" ]; then
+            echo "do_site=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "do_site=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build intraday (mbank3)
         if: ${{ steps.flags.outputs.in_session == 'true' || env.FORCE == '1' }}
@@ -74,7 +86,7 @@ jobs:
 
       # ======（任意）サイト反映：Secrets設定時のみ動作 ======
       - name: Checkout SITE repo (optional)
-        if: ${{ (secrets.SITE_REPO != '' && secrets.SITE_TOKEN != '') && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
+        if: ${{ steps.site.outputs.do_site == 'true' && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.SITE_REPO }}
@@ -82,12 +94,12 @@ jobs:
           token: ${{ secrets.SITE_TOKEN }}
 
       - name: Render to SITE repo (legacy design) (optional)
-        if: ${{ (secrets.SITE_REPO != '' && secrets.SITE_TOKEN != '') && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
+        if: ${{ steps.site.outputs.do_site == 'true' && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
         run: |
           python scripts/site_render_intraday.py
 
       - name: Commit to SITE repo (optional)
-        if: ${{ (secrets.SITE_REPO != '' && secrets.SITE_TOKEN != '') && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
+        if: ${{ steps.site.outputs.do_site == 'true' && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
         working-directory: site
         run: |
           git config user.name  "github-actions[bot]"
