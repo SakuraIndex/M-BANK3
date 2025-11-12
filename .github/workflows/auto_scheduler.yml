@@ -8,20 +8,25 @@ on:
         required: false
         default: "false"
   schedule:
-    - cron: "*/5 * * * 1-5"   # 平日5分ごと
+    - cron: "*/5 * * * 1-5"   # JST平日5分おき（GitHubはUTCで実行）
 
 permissions:
   contents: write
+
+concurrency:
+  group: mbank3-intraday
+  cancel-in-progress: true
 
 jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      # 手動起動時に force=true なら 1、それ以外は 0
       FORCE: ${{ github.event.inputs.force == 'true' && '1' || '0' }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout (this repo)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -45,20 +50,21 @@ jobs:
           from zoneinfo import ZoneInfo
           tz = ZoneInfo("Asia/Tokyo")
           now = datetime.now(tz)
-          s, e = time(9,0), time(15,30)
-          start = datetime.combine(now.date(), s, tzinfo=tz)
-          end   = datetime.combine(now.date(), e, tzinfo=tz)
-          print(f"in_session={'true' if start <= now <= end else 'false'}")
+          start = datetime.combine(now.date(), time(9,0), tz)
+          end   = datetime.combine(now.date(), time(15,30), tz)
+          in_session = start <= now <= end
+          print(f"in_session={in_session}")
+          with open("${GITHUB_OUTPUT}", "a") as wf:
+              wf.write(f"in_session={'true' if in_session else 'false'}\n")
           PY
 
-      # ↓ M-BANK3 のメイン処理（スクリプト名/出力名はあなたのリポに合わせて）
-      - name: Build intraday (M-BANK3)
-        if: steps.flags.outputs.in_session == 'true' || env.FORCE == '1'
+      - name: Build intraday (mbank3)
+        if: ${{ steps.flags.outputs.in_session == 'true' || env.FORCE == '1' }}
         run: |
           python src/mbank3_intraday.py
 
       - name: Commit outputs (this repo)
-        if: steps.flags.outputs.in_session == 'true' || env.FORCE == '1'
+        if: ${{ steps.flags.outputs.in_session == 'true' || env.FORCE == '1' }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -66,27 +72,26 @@ jobs:
           git commit -m "chore(intraday): mbank3" || echo "no changes"
           git push || true
 
-      # --- サイト側に反映したい場合は、Secrets を設定した後で下の3ステップを有効化 ---
-      # - name: Checkout SITE repo
-      #   if: steps.flags.outputs.in_session == 'true' || env.FORCE == '1'
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: ${{ secrets.SITE_REPO }}
-      #     path: site
-      #     token: ${{ secrets.SITE_TOKEN }}
-      #
-      # - name: Render PNG/TXT/JSON in SITE repo (legacy design)
-      #   if: steps.flags.outputs.in_session == 'true' || env.FORCE == '1'
-      #   run: |
-      #     python scripts/site_render_intraday.py
-      #     python scripts/publish_to_site.py
-      #
-      # - name: Commit to SITE repo
-      #   if: steps.flags.outputs.in_session == 'true' || env.FORCE == '1'
-      #   working-directory: site
-      #   run: |
-      #     git config user.name  "github-actions[bot]"
-      #     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      #     git add docs/charts/M_BANK3/*
-      #     git commit -m "Update M-BANK3 intraday charts (JST)" || echo "no site changes"
-      #     git push || true
+      # ======（任意）サイト反映：Secrets設定時のみ動作 ======
+      - name: Checkout SITE repo (optional)
+        if: ${{ (secrets.SITE_REPO != '' && secrets.SITE_TOKEN != '') && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SITE_REPO }}
+          path: site
+          token: ${{ secrets.SITE_TOKEN }}
+
+      - name: Render to SITE repo (legacy design) (optional)
+        if: ${{ (secrets.SITE_REPO != '' && secrets.SITE_TOKEN != '') && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
+        run: |
+          python scripts/site_render_intraday.py
+
+      - name: Commit to SITE repo (optional)
+        if: ${{ (secrets.SITE_REPO != '' && secrets.SITE_TOKEN != '') && (steps.flags.outputs.in_session == 'true' || env.FORCE == '1') }}
+        working-directory: site
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/charts/M_BANK3/* || true
+          git commit -m "Update M-BANK3 intraday charts (JST)" || echo "no site changes"
+          git push || true
