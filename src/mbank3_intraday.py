@@ -38,6 +38,7 @@ YF_PERIODS    = ["3d", "7d"]
 PD_FREQ_5     = "5min"
 PD_FREQ_15    = "15min"
 
+# 表示の安全キャップ（%）
 PCT_CLIP_LOW  = -20.0
 PCT_CLIP_HIGH =  20.0
 
@@ -214,7 +215,7 @@ def save_csv(series: pd.Series, path: str, pd_freq: str) -> None:
     print(f"[INFO] wrote CSV rows: {len(out)}")
 
 def plot_png(series: Optional[pd.Series], path: str) -> None:
-    """最後の値の符号で色を切替：プラス=青、マイナス=赤"""
+    """最後の値の符号で色を切替：プラス=青 (#22d3ee)、マイナス=赤 (#ef4444)"""
     ensure_outdir(path)
     plt.close("all")
     fig, ax = plt.subplots(figsize=(14, 6), dpi=140)
@@ -232,7 +233,7 @@ def plot_png(series: Optional[pd.Series], path: str) -> None:
     else:
         s = series.dropna()
         last_pct = float(s.iloc[-1])
-        line_color = "#22d3ee" if last_pct >= 0 else "#ef4444"  # 青 / 赤
+        line_color = "#22d3ee" if last_pct >= 0 else "#ef4444"
         ax.plot(s.index, s.values, color=line_color, linewidth=2.0)
         ax.axhline(0, color="#666", linewidth=1.0)
         ax.set_title(title, color="white")
@@ -245,11 +246,13 @@ def plot_png(series: Optional[pd.Series], path: str) -> None:
     plt.close(fig)
 
 def save_post_and_stats(series: Optional[pd.Series], post_path: str, stat_path: str) -> None:
+    """ポスト文 & stats.json を出力（unit='percent' を明記してサイト側の解釈を安定化）"""
     ensure_outdir(post_path); ensure_outdir(stat_path)
     if series is None or len(series) == 0 or series.dropna().empty:
         last = 0.0
     else:
         last = float(series.dropna().iloc[-1])
+
     sign = "+" if last >= 0 else ""
     txt = (
         f"▲ M-BANK3 日中スナップショット（{jst_now().strftime('%Y/%m/%d %H:%M JST')}）\n"
@@ -266,8 +269,9 @@ def save_post_and_stats(series: Optional[pd.Series], post_path: str, stat_path: 
             {
                 "index_key": "mbank3",
                 "label": "M-BANK3",
-                "pct_intraday": round(last, 4),
+                "pct_intraday": round(last, 4),   # すでに「%」の数値
                 "basis": "prev_close",
+                "unit": "percent",               # ★ 追加：サイト側での倍率誤判定を防止
                 "updated_at": jst_now().isoformat(),
             },
             f,
