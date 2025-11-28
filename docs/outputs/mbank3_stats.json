@@ -1,8 +1,8 @@
 {
   "index_key": "mbank3",
   "label": "M-BANK3",
-  "pct_intraday": -0.1198,
+  "pct_intraday": 0.4423,
   "basis": "prev_close",
   "unit": "percent",
-  "updated_at": "2025-11-28T08:55:51.521477+09:00"
+  "updated_at": "2025-11-28T10:17:54.178069+09:00"
 }
